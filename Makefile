@@ -1,4 +1,4 @@
-.PHONY: help up down logs kafka-ui events bronze-stream test clean
+.PHONY: help up down logs kafka-ui events bronze-stream bronze-logs test clean
 
 help:
 	@echo "AetherFlow Commands:"
@@ -7,7 +7,8 @@ help:
 	@echo "  make logs          - Follow logs across all services"
 	@echo "  make kafka-ui      - Start Kafka UI at http://localhost:8086"
 	@echo "  make events COUNT=10 - Send JSON events to Kafka"
-	@echo "  make bronze-stream - Start Kafka to Bronze Delta streaming"
+	@echo "  make bronze-stream - Start the Kafka to Bronze Delta service"
+	@echo "  make bronze-logs   - Follow Bronze stream logs"
 	@echo "  make test          - Run the test suite"
 	@echo "  make clean         - Remove local Python and Spark temp files"
 
@@ -30,7 +31,10 @@ events:
 	python3 scripts/produce_events.py --count $${COUNT:-10}
 
 bronze-stream:
-	docker compose exec spark-worker /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/aetherflow/scripts/bronze_stream.py
+	docker compose up -d bronze-stream
+
+bronze-logs:
+	docker compose logs -f bronze-stream
 
 test:
 	pytest tests/ -v
