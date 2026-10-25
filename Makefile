@@ -30,8 +30,7 @@ events:
 	python3 scripts/produce_events.py --count $${COUNT:-10}
 
 bronze-stream:
-	docker compose cp scripts/bronze_stream.py spark-worker:/tmp/bronze_stream.py
-	docker compose exec spark-worker /opt/spark/bin/spark-submit --master spark://spark-master:7077 /tmp/bronze_stream.py
+	docker compose exec spark-worker /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/aetherflow/scripts/bronze_stream.py
 
 test:
 	pytest tests/ -v

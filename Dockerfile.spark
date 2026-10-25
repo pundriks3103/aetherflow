@@ -36,4 +36,7 @@ RUN curl -fL \
 # Python package for Delta Lake
 RUN python3 -m pip install --no-cache-dir delta-spark==3.2.0
 
+# Pipeline entry points available to both the Spark driver and executors.
+COPY scripts/ /opt/aetherflow/scripts/
+
 USER 0:0
