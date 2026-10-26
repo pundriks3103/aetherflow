@@ -6,11 +6,14 @@ import json
 import subprocess
 from datetime import datetime, timezone
 
+from aetherflow_config import load_config
+
 
 def main():
+    config = load_config(context="compose")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--topic", default="aetherflow-events")
-    parser.add_argument("--count", type=int, default=10)
+    parser.add_argument("--topic", default=config["kafka"]["topics"]["events"])
+    parser.add_argument("--count", type=int, default=config["generic_producer"]["count"])
     args = parser.parse_args()
     if args.count < 1:
         parser.error("--count must be at least 1")
@@ -39,7 +42,7 @@ def main():
             "kafka",
             "kafka-console-producer",
             "--bootstrap-server",
-            "kafka:29092",
+            config["kafka"]["bootstrap_servers"],
             "--topic",
             args.topic,
         ],

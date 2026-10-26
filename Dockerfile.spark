@@ -34,12 +34,18 @@ RUN curl -fL \
     -o /opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
 
 # Python packages for Delta Lake and the live market producer
+COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --no-cache-dir \
     --no-deps delta-spark==3.2.0 \
-    kafka-python==2.0.2 \
-    websocket-client==1.8.0
+ && python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Pipeline entry points available to both the Spark driver and executors.
 COPY scripts/ /opt/aetherflow/scripts/
+COPY config/ /opt/aetherflow/config/
+COPY aetherflow_delta_smoke_test.py /opt/aetherflow/aetherflow_delta_smoke_test.py
+
+ENV PYTHONPATH="/opt/aetherflow/scripts:/opt/spark/python/lib/pyspark.zip:/opt/spark/python/lib/py4j-0.10.9.7-src.zip"
+ENV AETHERFLOW_CONTEXT=compose
+ENV AETHERFLOW_CONFIG=/opt/aetherflow/config/aetherflow.yml
 
 USER 0:0

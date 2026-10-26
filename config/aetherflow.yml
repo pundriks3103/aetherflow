@@ -1,0 +1,67 @@
+# Non-secret application defaults. Credentials are supplied through environment variables.
+contexts:
+  host:
+    kafka_bootstrap_servers: localhost:9092
+    s3_endpoint: http://localhost:8333
+    spark_master: spark://localhost:7077
+  compose:
+    kafka_bootstrap_servers: kafka:29092
+    s3_endpoint: http://seaweedfs:8333
+    spark_master: spark://spark-master:7077
+
+spark:
+  cores_max: 2
+
+kafka:
+  topics:
+    events: aetherflow-events
+
+crypto_producer:
+  symbol: btcusdt
+  duration_seconds: 0
+  max_messages: 0
+  reconnect_initial_seconds: 1
+  reconnect_max_seconds: 30
+  websocket_url: wss://stream.binance.com:9443/ws/{symbol}@trade
+
+bronze:
+  output: s3a://aetherflow-data/bronze/events
+  checkpoint: s3a://aetherflow-checkpoints/bronze-events/
+  trigger_seconds: 10
+
+silver:
+  output: s3a://aetherflow-data/silver/events
+  quarantine: s3a://aetherflow-data/quarantine/silver-events
+
+decimal:
+  precision: 38
+  scale: 18
+  max_integer_digits: 20
+  positive_only: true
+  allow_scientific_notation: false
+
+airflow:
+  dag_id: aetherflow_silver_transform
+  schedule: "0 * * * *"
+  catchup: false
+  max_active_runs: 1
+  retries: 1
+  retry_delay_seconds: 5
+
+s3a:
+  path_style_access: true
+  ssl_enabled: false
+  filesystem: org.apache.hadoop.fs.s3a.S3AFileSystem
+  credentials_provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+
+smoke_test:
+  output: s3a://aetherflow-data/bronze/smoke-test
+
+tests:
+  recovery_root: s3a://aetherflow-data/recovery-tests
+
+make:
+  crypto_duration_seconds: 30
+
+generic_producer:
+  count: 10

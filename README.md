@@ -4,20 +4,18 @@ A local Kafka, Spark, Delta Lake, SeaweedFS, and Airflow data platform.
 
 ## Current pipeline
 
-Kafka events are continuously written by the `bronze-stream` Compose service to:
-
-- Bronze Delta: `s3a://aetherflow-data/bronze/events`
-- Bronze checkpoint: `s3a://aetherflow-checkpoints/bronze-events/`
-- Silver Delta: `s3a://aetherflow-data/silver/events`
-- Silver quarantine: `s3a://aetherflow-data/quarantine/silver-events`
+Kafka events are continuously written by `bronze-stream`; topic, storage paths,
+checkpoint, decimal policy, schedule, and retry defaults live in
+`config/aetherflow.yml`. The Kafka topic and production storage/checkpoint paths
+retain their established values.
 
 The hourly `aetherflow_silver_transform` Airflow DAG launches the existing
 Delta-enabled Spark image. It reads the full Bronze snapshot, validates the
 known event schema, deduplicates legacy records by `event_id` and Binance trades
 by `source:symbol:trade_id`, and deterministically overwrites Silver and
-quarantine outputs. Binance prices and quantities are stored as
-`DecimalType(38,18)`; this covers the observed eight fractional digits while
-leaving headroom. Invalid records are retained in quarantine with semicolon-
+quarantine outputs. Binance prices and quantities use the configured decimal
+type, which covers the observed eight fractional digits while leaving headroom.
+Invalid records are retained in quarantine with semicolon-
 delimited reasons. The task allows one five-second retry and limits active DAG
 runs to one. Silver remains a full-snapshot job until an incremental merge and
 checkpoint strategy is tested.
@@ -32,6 +30,18 @@ therefore needs access to the Docker socket. On this local Docker Desktop setup,
 the default socket path is `/Users/pundriksharma/.docker/run/docker.sock`; set
 `DOCKER_SOCKET_PATH` in `.env` when using a different path.
 
+Application configuration uses `AETHERFLOW_CONTEXT=host` for host tools
+(`localhost` published ports) and `AETHERFLOW_CONTEXT=compose` for container
+tools (Compose service DNS). Compose services set the latter explicitly. The
+host-run generic event command delegates publishing to the Kafka container and
+selects Compose context for that operation. An
+optional `AETHERFLOW_CONFIG` selects another YAML file. CLI arguments override
+environment values, which override YAML defaults. Legacy `KAFKA_TOPIC`,
+`KAFKA_BOOTSTRAP_SERVERS`, `BINANCE_SYMBOL`, and `S3_ENDPOINT` environment
+overrides remain supported; prefixed `AETHERFLOW_*` overrides are preferred.
+Credentials remain environment-only. Install `requirements.txt` for host-run
+Python tools; Spark images include the same YAML parser.
+
 ## Useful commands
 
 ```bash
@@ -45,9 +55,13 @@ make crypto-trades DURATION=30 SYMBOL=btcusdt
 ```
 
 `make crypto-trades` connects to Binance's public Spot `@trade` stream and
-publishes normalized live events to `aetherflow-events` without restarting any
+publishes normalized live events to the configured events topic without restarting any
 Compose service. Prices and quantities remain decimal strings, and the original
 Binance payload is retained inside each Kafka value.
 
 Airflow is available at `http://localhost:8085`, Kafka UI at
 `http://localhost:8086`, and the Spark master UI at `http://localhost:8080`.
+
+`make test` builds a temporary Spark test container and runs the unit suite.
+`make recovery-test` runs the Kafka/Spark restart harness with a unique topic
+and unique S3 output/checkpoint prefixes.

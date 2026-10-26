@@ -112,10 +112,11 @@ services:
       start_period: 30s
     networks: [aetherflow-net]
     environment:
-      PYTHONPATH: "/opt/spark/python/lib/pyspark.zip:/opt/spark/python/lib/py4j-0.10.9.7-src.zip"
+      PYTHONPATH: "/opt/aetherflow/scripts:/opt/spark/python/lib/pyspark.zip:/opt/spark/python/lib/py4j-0.10.9.7-src.zip"
+      AETHERFLOW_CONTEXT: compose
+      AETHERFLOW_CONFIG: /opt/aetherflow/config/aetherflow.yml
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
-      S3_ENDPOINT: "http://seaweedfs:8333"
 
   spark-worker:
     image: aetherflow-spark:3.5.1-delta3.2.0
@@ -146,10 +147,11 @@ services:
       start_period: 30s
     networks: [aetherflow-net]
     environment:
-      PYTHONPATH: "/opt/spark/python/lib/pyspark.zip:/opt/spark/python/lib/py4j-0.10.9.7-src.zip"
+      PYTHONPATH: "/opt/aetherflow/scripts:/opt/spark/python/lib/pyspark.zip:/opt/spark/python/lib/py4j-0.10.9.7-src.zip"
+      AETHERFLOW_CONTEXT: compose
+      AETHERFLOW_CONFIG: /opt/aetherflow/config/aetherflow.yml
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
-      S3_ENDPOINT: "http://seaweedfs:8333"
 
   bronze-stream:
     image: aetherflow-spark:3.5.1-delta3.2.0
@@ -176,10 +178,11 @@ services:
       start_period: 45s
     networks: [aetherflow-net]
     environment:
-      PYTHONPATH: "/opt/spark/python/lib/pyspark.zip:/opt/spark/python/lib/py4j-0.10.9.7-src.zip"
+      PYTHONPATH: "/opt/aetherflow/scripts:/opt/spark/python/lib/pyspark.zip:/opt/spark/python/lib/py4j-0.10.9.7-src.zip"
+      AETHERFLOW_CONTEXT: compose
+      AETHERFLOW_CONFIG: /opt/aetherflow/config/aetherflow.yml
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
-      S3_ENDPOINT: "http://seaweedfs:8333"
 
   postgres:
     image: postgres:16.1
@@ -208,6 +211,8 @@ services:
       postgres:
         condition: service_healthy
     environment: &airflow-environment
+      AETHERFLOW_CONTEXT: compose
+      AETHERFLOW_CONFIG: /opt/aetherflow/config/aetherflow.yml
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-aetherflow}:${POSTGRES_PASSWORD:-aetherflow-local-only}@postgres:5432/${POSTGRES_DB:-airflow}
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-JfJ7LQ3cJ1x8r2a5m7v9Q0p4s6t8u1w3x5y7z9A2B4c=}
@@ -226,7 +231,6 @@ services:
       _AIRFLOW_WWW_USER_EMAIL: admin@example.com
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
       S3_SECRET_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
-      S3_ENDPOINT: "http://seaweedfs:8333"
     command: ["bash", "-c", "airflow db migrate && (airflow users create --username \"$${_AIRFLOW_WWW_USER_USERNAME}\" --password \"$${_AIRFLOW_WWW_USER_PASSWORD}\" --firstname \"$${_AIRFLOW_WWW_USER_FIRSTNAME}\" --lastname \"$${_AIRFLOW_WWW_USER_LASTNAME}\" --role Admin --email \"$${_AIRFLOW_WWW_USER_EMAIL}\" || airflow users list | grep -q \"$${_AIRFLOW_WWW_USER_USERNAME}\")"]
     volumes:
       - ./airflow/dags:/opt/airflow/dags
@@ -247,6 +251,8 @@ services:
       - "8085:8080"
     volumes:
       - ./airflow/dags:/opt/airflow/dags:ro
+      - ./scripts:/opt/aetherflow/scripts:ro
+      - ./config:/opt/aetherflow/config:ro
       - ./airflow/logs:/opt/airflow/logs
     healthcheck:
       test: ["CMD-SHELL", "curl --fail http://localhost:8080/health"]
@@ -267,6 +273,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./airflow/dags:/opt/airflow/dags:ro
+      - ./scripts:/opt/aetherflow/scripts:ro
+      - ./config:/opt/aetherflow/config:ro
       - ./airflow/logs:/opt/airflow/logs
       - ${DOCKER_SOCKET_PATH:-/Users/pundriksharma/.docker/run/docker.sock}:/var/run/docker.sock
     healthcheck:

@@ -7,21 +7,29 @@ and verifies that the isolated Delta output contains the published records.
 import json
 import os
 import signal
+import sys
 import subprocess
 import time
 import uuid
+from pathlib import Path
+
+sys.path.insert(0, "/opt/aetherflow/scripts")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from kafka import KafkaProducer
 from pyspark.sql import SparkSession
+from aetherflow_config import configure_s3a, load_config
 
 
 def main():
+    config = load_config(context="compose")
     run = uuid.uuid4().hex[:10]
     topic = f"aetherflow-recovery-test-{run}"
-    output = f"s3a://aetherflow-data/recovery-tests/{run}/bronze"
-    checkpoint = f"s3a://aetherflow-data/recovery-tests/{run}/checkpoint"
-    command = ["/opt/spark/bin/spark-submit", "--master", "spark://spark-master:7077", "/opt/aetherflow/scripts/bronze_stream.py", "--topic", topic, "--output", output, "--checkpoint", checkpoint]
-    producer = KafkaProducer(bootstrap_servers="kafka:29092", value_serializer=lambda value: json.dumps(value).encode())
+    root = config["tests"]["recovery_root"].rstrip("/")
+    output = f"{root}/{run}/bronze"
+    checkpoint = f"{root}/{run}/checkpoint"
+    command = ["/opt/spark/bin/spark-submit", "--master", config["spark"]["master"], "/opt/aetherflow/scripts/bronze_stream.py", "--topic", topic, "--bootstrap-servers", config["kafka"]["bootstrap_servers"], "--output", output, "--checkpoint", checkpoint]
+    producer = KafkaProducer(bootstrap_servers=config["kafka"]["bootstrap_servers"], value_serializer=lambda value: json.dumps(value).encode())
     for i in range(4):
         producer.send(topic, {"event_id": f"recovery-{i}", "event_time": "2026-10-26T06:00:00Z", "entity_id": "recovery", "event_type": "test", "value": i})
     producer.flush()
@@ -36,13 +44,10 @@ def main():
     time.sleep(30)
     os.killpg(second.pid, signal.SIGTERM)
     second.wait(timeout=30)
-    spark = (SparkSession.builder.master("local[2]").appName("recovery-verification")
+    spark_builder = (SparkSession.builder.master("local[2]").appName("recovery-verification")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-        .config("spark.hadoop.fs.s3a.endpoint", os.environ.get("S3_ENDPOINT", "http://seaweedfs:8333"))
-        .config("spark.hadoop.fs.s3a.access.key", os.environ["AWS_ACCESS_KEY_ID"])
-        .config("spark.hadoop.fs.s3a.secret.key", os.environ["AWS_SECRET_ACCESS_KEY"])
-        .config("spark.hadoop.fs.s3a.path.style.access", "true").config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem").getOrCreate())
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"))
+    spark = configure_s3a(spark_builder, config).getOrCreate()
     try:
         count = spark.read.format("delta").load(output).count()
     finally:

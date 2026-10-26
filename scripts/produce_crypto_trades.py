@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 import websocket
 from kafka import KafkaProducer
+from aetherflow_config import load_config
 
 
 LOG = logging.getLogger("aetherflow.crypto_trades")
@@ -47,29 +48,28 @@ def normalize_trade(exchange_payload):
     }
 
 
-def parse_args():
+def parse_args(config, argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--symbol", default=os.environ.get("BINANCE_SYMBOL", "btcusdt"))
-    parser.add_argument(
-        "--topic", default=os.environ.get("KAFKA_TOPIC", "aetherflow-events")
-    )
-    parser.add_argument(
-        "--bootstrap-servers",
-        default=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092"),
-    )
-    parser.add_argument("--duration-seconds", type=int, default=0)
-    parser.add_argument("--max-messages", type=int, default=0)
-    parser.add_argument("--max-backoff-seconds", type=int, default=30)
-    return parser.parse_args()
+    parser.add_argument("--symbol", default=config["crypto_producer"]["symbol"])
+    parser.add_argument("--topic", default=config["kafka"]["topics"]["events"])
+    parser.add_argument("--bootstrap-servers", default=config["kafka"]["bootstrap_servers"])
+    parser.add_argument("--duration-seconds", type=int, default=config["crypto_producer"]["duration_seconds"])
+    parser.add_argument("--max-messages", type=int, default=config["crypto_producer"]["max_messages"])
+    parser.add_argument("--initial-backoff-seconds", type=int, default=config["crypto_producer"]["reconnect_initial_seconds"])
+    parser.add_argument("--max-backoff-seconds", type=int, default=config["crypto_producer"]["reconnect_max_seconds"])
+    return parser.parse_args(argv)
 
 
 def main():
-    args = parse_args()
+    config = load_config()
+    args = parse_args(config)
     symbol = args.symbol.lower()
     if not SYMBOL_RE.fullmatch(symbol):
         raise SystemExit("--symbol must contain only lowercase letters and digits")
     if args.duration_seconds < 0 or args.max_messages < 0:
         raise SystemExit("duration and max-messages cannot be negative")
+    if args.initial_backoff_seconds < 1 or args.max_backoff_seconds < args.initial_backoff_seconds:
+        raise SystemExit("reconnect backoff must be positive and max-backoff must be >= initial-backoff")
 
     producer = KafkaProducer(
         bootstrap_servers=args.bootstrap_servers,
@@ -80,17 +80,17 @@ def main():
         acks="all",
     )
     deadline = time.monotonic() + args.duration_seconds if args.duration_seconds else None
-    stream_url = f"wss://stream.binance.com:9443/ws/{symbol}@trade"
     published = 0
-    backoff = 1
+    backoff = args.initial_backoff_seconds
 
     try:
         while deadline is None or time.monotonic() < deadline:
             ws = None
             try:
+                stream_url = config["crypto_producer"]["websocket_url"].format(symbol=symbol)
                 ws = websocket.create_connection(stream_url, timeout=15)
                 LOG.info("Connected to Binance trade stream symbol=%s", symbol)
-                backoff = 1
+                backoff = args.initial_backoff_seconds
                 while deadline is None or time.monotonic() < deadline:
                     timeout = 15
                     if deadline is not None:

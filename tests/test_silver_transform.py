@@ -7,7 +7,8 @@ from pyspark.sql import SparkSession, types as T
 
 sys.path.insert(0, "/opt/aetherflow/scripts")
 sys.path.insert(0, "scripts")
-from silver_transform import DECIMAL_TYPE, transform_bronze
+from aetherflow_config import load_config
+from silver_transform import transform_bronze
 
 
 class SilverTransformTest(unittest.TestCase):
@@ -48,7 +49,11 @@ class SilverTransformTest(unittest.TestCase):
             self.trade("zero", 5, price="0"), self.trade("negative", 6, price="-1"),
             self.trade("qty-null", 7, quantity=None), self.trade("qty-scale", 8, quantity="1.1234567890123456789"),
         ]
-        _, invalid, _ = self.result(rows)
+        self.spark.conf.set("spark.sql.ansi.enabled", "true")
+        try:
+            _, invalid, _ = self.result(rows)
+        finally:
+            self.spark.conf.set("spark.sql.ansi.enabled", "false")
         reasons = {row.offset: row.reject_reason for row in invalid}
         self.assertIn("missing_price", reasons[1]); self.assertIn("malformed_price", reasons[2])
         self.assertIn("excessive_scale_price", reasons[3]); self.assertIn("precision_overflow_price", reasons[4])
@@ -72,7 +77,8 @@ class SilverTransformTest(unittest.TestCase):
         self.assertEqual(a[0].collect(), b[0].collect())
         self.assertEqual(a[1].select("reject_reason").collect(), b[1].select("reject_reason").collect())
         self.assertIn("malformed_json", a[1].first().reject_reason)
-        self.assertEqual(a[0].schema["price"].dataType, DECIMAL_TYPE)
+        policy = load_config(environ={})["decimal"]
+        self.assertEqual(a[0].schema["price"].dataType, T.DecimalType(policy["precision"], policy["scale"]))
 
 
 if __name__ == "__main__":
