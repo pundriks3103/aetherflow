@@ -31,7 +31,13 @@ make bronze-logs
 make silver-transform
 make silver-logs
 make events COUNT=10
+make crypto-trades DURATION=30 SYMBOL=btcusdt
 ```
+
+`make crypto-trades` connects to Binance's public Spot `@trade` stream and
+publishes normalized live events to `aetherflow-events` without restarting any
+Compose service. Prices and quantities remain decimal strings, and the original
+Binance payload is retained inside each Kafka value.
 
 Airflow is available at `http://localhost:8085`, Kafka UI at
 `http://localhost:8086`, and the Spark master UI at `http://localhost:8080`.

@@ -33,8 +33,11 @@ RUN curl -fL \
     https://repo.maven.apache.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar \
     -o /opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
 
-# Python package for Delta Lake
-RUN python3 -m pip install --no-cache-dir delta-spark==3.2.0
+# Python packages for Delta Lake and the live market producer
+RUN python3 -m pip install --no-cache-dir \
+    --no-deps delta-spark==3.2.0 \
+    kafka-python==2.0.2 \
+    websocket-client==1.8.0
 
 # Pipeline entry points available to both the Spark driver and executors.
 COPY scripts/ /opt/aetherflow/scripts/

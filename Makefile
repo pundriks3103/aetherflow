@@ -1,4 +1,4 @@
-.PHONY: help up down logs kafka-ui events bronze-stream bronze-logs silver-transform silver-logs test clean
+.PHONY: help up down logs kafka-ui events crypto-trades bronze-stream bronze-logs silver-transform silver-logs test clean
 
 help:
 	@echo "AetherFlow Commands:"
@@ -7,6 +7,7 @@ help:
 	@echo "  make logs          - Follow logs across all services"
 	@echo "  make kafka-ui      - Start Kafka UI at http://localhost:8086"
 	@echo "  make events COUNT=10 - Send JSON events to Kafka"
+	@echo "  make crypto-trades - Publish live Binance trades (DURATION=30, SYMBOL=btcusdt)"
 	@echo "  make bronze-stream - Start the Kafka to Bronze Delta service"
 	@echo "  make bronze-logs   - Follow Bronze stream logs"
 	@echo "  make silver-transform - Run the Silver transformation once"
@@ -31,6 +32,9 @@ kafka-ui:
 
 events:
 	python3 scripts/produce_events.py --count $${COUNT:-10}
+
+crypto-trades:
+	docker compose exec -T bronze-stream python3 /opt/aetherflow/scripts/produce_crypto_trades.py --symbol $${SYMBOL:-btcusdt} --duration-seconds $${DURATION:-30} --max-messages $${COUNT:-0}
 
 bronze-stream:
 	docker compose up -d bronze-stream
