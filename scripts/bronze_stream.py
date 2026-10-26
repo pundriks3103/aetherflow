@@ -42,7 +42,7 @@ def format_progress(progress):
 
 
 def main():
-    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s", force=True)
     config = load_config()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--topic", default=config["kafka"]["topics"]["events"])
@@ -84,7 +84,7 @@ def main():
                 if remaining <= 0:
                     break
                 wait_seconds = min(wait_seconds, max(0.1, remaining))
-            terminated = query.awaitTermination(int(wait_seconds * 1000))
+            terminated = query.awaitTermination(wait_seconds)
             for progress in query.recentProgress:
                 batch_id = progress.get("batchId")
                 if last_batch_id is None or batch_id > last_batch_id:

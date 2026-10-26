@@ -25,6 +25,17 @@ and quarantine counts by reason. The isolated recovery harness can be run from
 the Spark container after copying `tests/bronze_recovery_harness.py`; it creates
 unique Kafka and S3 prefixes and never uses the production Bronze checkpoint.
 
+`make metrics` prints a read-only snapshot of per-partition Kafka beginning/end
+offsets versus the highest offsets stored in Bronze, the latest valid Binance
+exchange-event freshness in Bronze and Silver, the latest successful Silver
+task end time from Airflow metadata, quarantine counts by reason, and the most
+recent Bronze progress log when available. Offset lag is an offset-position
+difference, not necessarily a count of unprocessed records. Unknown values
+(such as a partition with no Bronze offset yet) are reported as unknown rather
+than zero. Freshness uses exchange event time; Kafka record and ingestion
+timestamps are not treated as Bronze commit time. The command does not write to
+Kafka, Delta tables, checkpoints, or Airflow metadata.
+
 The Airflow scheduler uses the Docker provider to launch Spark. The scheduler
 therefore needs access to the Docker socket. On this local Docker Desktop setup,
 the default socket path is `/Users/pundriksharma/.docker/run/docker.sock`; set
@@ -50,6 +61,7 @@ make bronze-stream
 make bronze-logs
 make silver-transform
 make silver-logs
+make metrics
 make events COUNT=10
 make crypto-trades DURATION=30 SYMBOL=btcusdt
 ```
@@ -64,4 +76,5 @@ Airflow is available at `http://localhost:8085`, Kafka UI at
 
 `make test` builds a temporary Spark test container and runs the unit suite.
 `make recovery-test` runs the Kafka/Spark restart harness with a unique topic
-and unique S3 output/checkpoint prefixes.
+and unique S3 output/checkpoint prefixes; it also verifies known offset-lag and
+exchange-event freshness calculations against that isolated input.

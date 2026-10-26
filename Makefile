@@ -1,4 +1,4 @@
-.PHONY: help up down logs kafka-ui events crypto-trades bronze-stream bronze-logs silver-transform silver-logs test recovery-test clean
+.PHONY: help up down logs kafka-ui events crypto-trades bronze-stream bronze-logs silver-transform silver-logs metrics test recovery-test clean
 
 help:
 	@echo "AetherFlow Commands:"
@@ -12,6 +12,7 @@ help:
 	@echo "  make bronze-logs   - Follow Bronze stream logs"
 	@echo "  make silver-transform - Run the Silver transformation once"
 	@echo "  make silver-logs   - Follow Airflow logs for Silver"
+	@echo "  make metrics       - Print a read-only operational metrics snapshot"
 	@echo "  make test          - Run the test suite"
 	@echo "  make recovery-test - Run isolated Bronze checkpoint recovery test"
 	@echo "  make clean         - Remove local Python and Spark temp files"
@@ -48,6 +49,9 @@ silver-transform:
 
 silver-logs:
 	docker compose logs -f airflow-scheduler
+
+metrics:
+	python3 scripts/operational_metrics.py
 
 test:
 	docker compose run --build --rm --no-deps -v "$(CURDIR)/tests:/opt/aetherflow/tests:ro" bronze-stream python3 -m unittest discover -s /opt/aetherflow/tests -p 'test_*.py' -v
