@@ -13,9 +13,14 @@ Kafka events are continuously written by the `bronze-stream` Compose service to:
 
 The hourly `aetherflow_silver_transform` Airflow DAG launches the existing
 Delta-enabled Spark image. It reads the full Bronze snapshot, validates the
-known event schema, deduplicates by `event_id`, and deterministically overwrites
-Silver and quarantine outputs. The task allows one five-second retry and limits
-active DAG runs to one.
+known event schema, deduplicates legacy records by `event_id` and Binance trades
+by `source:symbol:trade_id`, and deterministically overwrites Silver and
+quarantine outputs. Binance prices and quantities are stored as
+`DecimalType(38,18)`; this covers the observed eight fractional digits while
+leaving headroom. Invalid records are retained in quarantine with semicolon-
+delimited reasons. The task allows one five-second retry and limits active DAG
+runs to one. Silver remains a full-snapshot job until an incremental merge and
+checkpoint strategy is tested.
 
 The Airflow scheduler uses the Docker provider to launch Spark. The scheduler
 therefore needs access to the Docker socket. On this local Docker Desktop setup,
