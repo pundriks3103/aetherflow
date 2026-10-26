@@ -1,4 +1,4 @@
-.PHONY: help up down logs kafka-ui events bronze-stream bronze-logs test clean
+.PHONY: help up down logs kafka-ui events bronze-stream bronze-logs silver-transform silver-logs test clean
 
 help:
 	@echo "AetherFlow Commands:"
@@ -9,6 +9,8 @@ help:
 	@echo "  make events COUNT=10 - Send JSON events to Kafka"
 	@echo "  make bronze-stream - Start the Kafka to Bronze Delta service"
 	@echo "  make bronze-logs   - Follow Bronze stream logs"
+	@echo "  make silver-transform - Run the Silver transformation once"
+	@echo "  make silver-logs   - Follow Airflow logs for Silver"
 	@echo "  make test          - Run the test suite"
 	@echo "  make clean         - Remove local Python and Spark temp files"
 
@@ -35,6 +37,12 @@ bronze-stream:
 
 bronze-logs:
 	docker compose logs -f bronze-stream
+
+silver-transform:
+	docker compose exec airflow-scheduler airflow dags test aetherflow_silver_transform 2026-01-01
+
+silver-logs:
+	docker compose logs -f airflow-scheduler
 
 test:
 	pytest tests/ -v
