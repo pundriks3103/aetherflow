@@ -20,6 +20,40 @@ delimited reasons. The task allows one five-second retry and limits active DAG
 runs to one. Silver remains a full-snapshot job until an incremental merge and
 checkpoint strategy is tested.
 
+`make crypto-analytics` rebuilds a separate hourly Delta snapshot from Silver
+at `s3a://aetherflow-data/analytics/crypto-hourly`. Windows use the Binance
+trade execution `event_time` in UTC and are start-inclusive/end-exclusive;
+exchange notification time is not used for window assignment. Stable
+`trade_identity` values are deduplicated before grouping, choosing the latest
+available ingestion/Kafka provenance and deterministic payload tie-breakers.
+The output includes symbol, window boundaries, distinct trade count, base
+quantity volume, quote notional, VWAP, first/last price, and high/low price.
+First/last use earliest/latest trade `event_time`; ties use ascending/descending
+`trade_identity` respectively. Quote notional is the sum of exact price ×
+quantity products, and VWAP is total quote notional ÷ total base quantity.
+
+Price and quantity are cast exactly to Decimal(25,8) and Decimal(12,8), based
+on observed Binance values using eight fractional digits. The product and
+quote notional use Decimal(38,16); VWAP is quote notional divided by base
+volume, rounded to Decimal(30,8). The chosen operands support prices below
+10^17 and quantities below 10^4. The job rejects values that cannot round-trip
+exactly through those types before writing. It recomputes the full snapshot
+from Silver on each run, leaving Bronze, Silver, quarantine, and the Bronze
+checkpoint untouched.
+
+Example query from a Spark session:
+
+```python
+hourly = spark.read.format("delta").load("s3a://aetherflow-data/analytics/crypto-hourly")
+hourly.createOrReplaceTempView("crypto_hourly")
+spark.sql("""
+  SELECT symbol, window_start, trade_count, base_volume, quote_notional,
+         vwap, first_price, last_price, low_price, high_price
+  FROM crypto_hourly
+  ORDER BY symbol, window_start
+""").show(truncate=False)
+```
+
 Silver logs a run identifier, duration, counts, maximum Bronze Kafka offset,
 and quarantine counts by reason. The isolated recovery harness can be run from
 the Spark container after copying `tests/bronze_recovery_harness.py`; it creates

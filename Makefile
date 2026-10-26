@@ -1,4 +1,4 @@
-.PHONY: help up down logs kafka-ui events crypto-trades bronze-stream bronze-logs silver-transform silver-logs metrics test recovery-test clean
+.PHONY: help up down logs kafka-ui events crypto-trades bronze-stream bronze-logs silver-transform silver-logs crypto-analytics metrics test recovery-test clean
 
 help:
 	@echo "AetherFlow Commands:"
@@ -11,6 +11,7 @@ help:
 	@echo "  make bronze-stream - Start the Kafka to Bronze Delta service"
 	@echo "  make bronze-logs   - Follow Bronze stream logs"
 	@echo "  make silver-transform - Run the Silver transformation once"
+	@echo "  make crypto-analytics - Rebuild hourly Binance trade aggregates from Silver"
 	@echo "  make silver-logs   - Follow Airflow logs for Silver"
 	@echo "  make metrics       - Print a read-only operational metrics snapshot"
 	@echo "  make test          - Run the test suite"
@@ -49,6 +50,9 @@ silver-transform:
 
 silver-logs:
 	docker compose logs -f airflow-scheduler
+
+crypto-analytics:
+	docker compose run --build --rm --no-deps bronze-stream /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/aetherflow/scripts/crypto_market_analytics.py
 
 metrics:
 	python3 scripts/operational_metrics.py

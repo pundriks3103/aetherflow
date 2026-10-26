@@ -55,6 +55,8 @@ def _apply_env(config, environ):
         "AETHERFLOW_BRONZE_TRIGGER_SECONDS": ("bronze.trigger_seconds", int),
         "AETHERFLOW_SILVER_OUTPUT": ("silver.output", str),
         "AETHERFLOW_SILVER_QUARANTINE": ("silver.quarantine", str),
+        "AETHERFLOW_ANALYTICS_OUTPUT": ("analytics.output", str),
+        "AETHERFLOW_ANALYTICS_WINDOW_MINUTES": ("analytics.window_minutes", int),
         "AETHERFLOW_DECIMAL_PRECISION": ("decimal.precision", int),
         "AETHERFLOW_DECIMAL_SCALE": ("decimal.scale", int),
         "AETHERFLOW_DECIMAL_MAX_INTEGER_DIGITS": ("decimal.max_integer_digits", int),
@@ -108,6 +110,9 @@ def validate_config(config):
         _required(config, f"bronze.{key}", str)
     for key in ("output", "quarantine"):
         _required(config, f"silver.{key}", str)
+    _required(config, "analytics.output", str)
+    for key in ("window_minutes", "price_precision", "price_scale", "quantity_precision", "quantity_scale", "vwap_precision", "vwap_scale"):
+        _required(config, f"analytics.{key}", int)
     for key in ("precision", "scale", "max_integer_digits"):
         _required(config, f"decimal.{key}", int)
     _required(config, "decimal.positive_only", bool)
@@ -134,6 +139,15 @@ def validate_config(config):
         raise ConfigError("decimal.max_integer_digits exceeds precision minus scale")
     if config["decimal"]["max_integer_digits"] < 1:
         raise ConfigError("decimal.max_integer_digits must be positive")
+    analytics = config["analytics"]
+    if analytics["window_minutes"] < 1:
+        raise ConfigError("analytics.window_minutes must be positive")
+    for name in ("price", "quantity", "vwap"):
+        precision, scale = analytics[f"{name}_precision"], analytics[f"{name}_scale"]
+        if not 1 <= scale <= precision <= 38:
+            raise ConfigError(f"analytics {name} precision/scale must satisfy 1 <= scale <= precision <= 38")
+    if analytics["price_precision"] + analytics["quantity_precision"] + 1 > 38:
+        raise ConfigError("analytics price and quantity precision leave no room for exact decimal multiplication")
     if config["crypto_producer"]["duration_seconds"] < 0 or config["crypto_producer"]["max_messages"] < 0:
         raise ConfigError("crypto producer duration and max_messages cannot be negative")
     if config["crypto_producer"]["reconnect_initial_seconds"] < 1 or config["crypto_producer"]["reconnect_max_seconds"] < config["crypto_producer"]["reconnect_initial_seconds"]:

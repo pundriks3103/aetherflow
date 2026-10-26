@@ -39,6 +39,14 @@ class AetherFlowConfigTest(unittest.TestCase):
         self.assertEqual((args.topic, args.bootstrap_servers, args.symbol), ("cli-topic", "cli-broker", "xrpusdt"))
         self.assertEqual(parse_args(config, []).topic, "environment-topic")
 
+    def test_analytics_environment_overrides(self):
+        config = load_config(environ={
+            "AETHERFLOW_ANALYTICS_OUTPUT": "s3a://test-bucket/analytics",
+            "AETHERFLOW_ANALYTICS_WINDOW_MINUTES": "15",
+        })
+        self.assertEqual(config["analytics"]["output"], "s3a://test-bucket/analytics")
+        self.assertEqual(config["analytics"]["window_minutes"], 15)
+
     def test_context_endpoints_and_explicit_environment_endpoint_override(self):
         host = load_config(environ={"AETHERFLOW_CONTEXT": "host"})
         compose = load_config(environ={"AETHERFLOW_CONTEXT": "compose"})
@@ -94,6 +102,7 @@ class AetherFlowConfigTest(unittest.TestCase):
         self.assertEqual(config["bronze"]["checkpoint"], "s3a://aetherflow-checkpoints/bronze-events/")
         self.assertEqual(config["silver"]["output"], "s3a://aetherflow-data/silver/events")
         self.assertEqual(config["silver"]["quarantine"], "s3a://aetherflow-data/quarantine/silver-events")
+        self.assertEqual((config["analytics"]["output"], config["analytics"]["window_minutes"]), ("s3a://aetherflow-data/analytics/crypto-hourly", 60))
         self.assertEqual((config["decimal"]["precision"], config["decimal"]["scale"], config["decimal"]["max_integer_digits"]), (38, 18, 20))
         self.assertTrue(config["decimal"]["positive_only"])
         self.assertFalse(config["decimal"]["allow_scientific_notation"])

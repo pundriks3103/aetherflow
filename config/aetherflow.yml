@@ -33,6 +33,16 @@ silver:
   output: s3a://aetherflow-data/silver/events
   quarantine: s3a://aetherflow-data/quarantine/silver-events
 
+analytics:
+  output: s3a://aetherflow-data/analytics/crypto-hourly
+  window_minutes: 60
+  price_precision: 25
+  price_scale: 8
+  quantity_precision: 12
+  quantity_scale: 8
+  vwap_precision: 30
+  vwap_scale: 8
+
 decimal:
   precision: 38
   scale: 18
