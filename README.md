@@ -22,6 +22,11 @@ delimited reasons. The task allows one five-second retry and limits active DAG
 runs to one. Silver remains a full-snapshot job until an incremental merge and
 checkpoint strategy is tested.
 
+Silver logs a run identifier, duration, counts, maximum Bronze Kafka offset,
+and quarantine counts by reason. The isolated recovery harness can be run from
+the Spark container after copying `tests/bronze_recovery_harness.py`; it creates
+unique Kafka and S3 prefixes and never uses the production Bronze checkpoint.
+
 The Airflow scheduler uses the Docker provider to launch Spark. The scheduler
 therefore needs access to the Docker socket. On this local Docker Desktop setup,
 the default socket path is `/Users/pundriksharma/.docker/run/docker.sock`; set
