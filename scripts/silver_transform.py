@@ -2,12 +2,17 @@
 """Build a validated, deduplicated Silver Delta snapshot from Bronze."""
 
 import argparse
+import logging
+import os
 import time
 import uuid
 
 from pyspark.sql import SparkSession, Window, functions as F, types as T
 
 from aetherflow_config import configure_s3a, load_config
+
+
+LOG = logging.getLogger("aetherflow.silver")
 
 
 DECIMAL_TEXT = r"^-?[0-9]+(?:\.[0-9]+)?$"
@@ -104,6 +109,7 @@ def transform_bronze(bronze, config=None):
 
 
 def main():
+    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
     config = load_config()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--master", default=config["spark"]["master"])
@@ -124,9 +130,9 @@ def main():
         silver.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(args.silver)
         invalid.select("raw_event", "reject_reason", "kafka_timestamp", "topic", "partition", "offset").write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(args.quarantine)
         elapsed = time.monotonic() - started
-        print(f"SILVER_METRICS run_id={run_id} duration_seconds={elapsed:.3f} input={input_count} valid={valid_count} invalid={invalid_count} duplicates_removed={valid_count-silver_count} output={silver_count} max_kafka_offset={max_offset}")
-        print(f"SILVER_QUARANTINE_REASONS run_id={run_id} reasons={reason_counts}")
-        print(f"SILVER_PATH {args.silver}\nQUARANTINE_PATH {args.quarantine}")
+        LOG.info("SILVER_METRICS run_id=%s duration_seconds=%.3f input=%s valid=%s invalid=%s duplicates_removed=%s output=%s max_kafka_offset=%s", run_id, elapsed, input_count, valid_count, invalid_count, valid_count-silver_count, silver_count, max_offset)
+        LOG.info("SILVER_QUARANTINE_REASONS run_id=%s reasons=%s", run_id, reason_counts)
+        LOG.info("SILVER_PATH %s QUARANTINE_PATH %s", args.silver, args.quarantine)
     finally:
         spark.stop()
 
