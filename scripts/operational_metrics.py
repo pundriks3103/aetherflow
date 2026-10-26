@@ -37,6 +37,7 @@ def _data_probe():
         "kafka": {},
         "bronze": {"status": "unavailable"},
         "silver": {"status": "unavailable"},
+        "analytics": {"status": "unavailable"},
         "quarantine": {"status": "unavailable"},
     }
 
@@ -153,6 +154,21 @@ def _data_probe():
             result["silver"] = {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}"}
 
         try:
+            analytics = spark.read.format("delta").load(config["analytics"]["output"])
+            analytics_stats = analytics.agg(
+                F.count("*").alias("rows"), F.max("window_end").alias("latest_window_end")
+            ).first()
+            analytics_count = int(analytics_stats["rows"])
+            result["analytics"] = {
+                "status": "available",
+                "row_count": analytics_count,
+                "latest_window_end_utc": _iso_utc(analytics_stats["latest_window_end"]),
+                "table_status": "empty_table" if analytics_count == 0 else "available",
+            }
+        except Exception as exc:
+            result["analytics"] = {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}"}
+
+        try:
             quarantine = spark.read.format("delta").load(config["silver"]["quarantine"])
             reason_rows = quarantine.groupBy("reject_reason").count().collect()
             result["quarantine"] = {
@@ -166,6 +182,7 @@ def _data_probe():
         detail = f"{type(exc).__name__}: {exc}"
         result["bronze"] = {"status": "unavailable", "error": detail}
         result["silver"] = {"status": "unavailable", "error": detail}
+        result["analytics"] = {"status": "unavailable", "error": detail}
         result["quarantine"] = {"status": "unavailable", "error": detail}
     finally:
         if spark is not None:

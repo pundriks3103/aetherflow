@@ -15,9 +15,9 @@ from aetherflow_config import configure_s3a, load_config
 LOG = logging.getLogger("aetherflow.crypto_analytics")
 
 
-def spark_session(master, config):
+def spark_session(master, config, app_name="AetherFlow-Crypto-Hourly-Analytics"):
     builder = (
-        SparkSession.builder.appName("AetherFlow-Crypto-Hourly-Analytics").master(master)
+        SparkSession.builder.appName(app_name).master(master)
         .config("spark.cores.max", str(config["spark"]["cores_max"]))
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")

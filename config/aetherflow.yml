@@ -43,6 +43,12 @@ analytics:
   vwap_precision: 30
   vwap_scale: 8
 
+dashboard:
+  refresh_seconds: 60
+  metrics_refresh_seconds: 300
+  freshness_stale_after_seconds: 900
+  recent_windows: 24
+
 decimal:
   precision: 38
   scale: 18

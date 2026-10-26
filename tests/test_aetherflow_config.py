@@ -103,6 +103,7 @@ class AetherFlowConfigTest(unittest.TestCase):
         self.assertEqual(config["silver"]["output"], "s3a://aetherflow-data/silver/events")
         self.assertEqual(config["silver"]["quarantine"], "s3a://aetherflow-data/quarantine/silver-events")
         self.assertEqual((config["analytics"]["output"], config["analytics"]["window_minutes"]), ("s3a://aetherflow-data/analytics/crypto-hourly", 60))
+        self.assertEqual((config["dashboard"]["refresh_seconds"], config["dashboard"]["metrics_refresh_seconds"], config["dashboard"]["freshness_stale_after_seconds"]), (60, 300, 900))
         self.assertEqual((config["decimal"]["precision"], config["decimal"]["scale"], config["decimal"]["max_integer_digits"]), (38, 18, 20))
         self.assertTrue(config["decimal"]["positive_only"])
         self.assertFalse(config["decimal"]["allow_scientific_notation"])

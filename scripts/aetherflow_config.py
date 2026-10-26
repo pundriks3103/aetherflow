@@ -113,6 +113,8 @@ def validate_config(config):
     _required(config, "analytics.output", str)
     for key in ("window_minutes", "price_precision", "price_scale", "quantity_precision", "quantity_scale", "vwap_precision", "vwap_scale"):
         _required(config, f"analytics.{key}", int)
+    for key in ("refresh_seconds", "metrics_refresh_seconds", "freshness_stale_after_seconds", "recent_windows"):
+        _required(config, f"dashboard.{key}", int)
     for key in ("precision", "scale", "max_integer_digits"):
         _required(config, f"decimal.{key}", int)
     _required(config, "decimal.positive_only", bool)
@@ -148,6 +150,8 @@ def validate_config(config):
             raise ConfigError(f"analytics {name} precision/scale must satisfy 1 <= scale <= precision <= 38")
     if analytics["price_precision"] + analytics["quantity_precision"] + 1 > 38:
         raise ConfigError("analytics price and quantity precision leave no room for exact decimal multiplication")
+    if any(config["dashboard"][key] < 1 for key in ("refresh_seconds", "metrics_refresh_seconds", "freshness_stale_after_seconds", "recent_windows")):
+        raise ConfigError("dashboard refresh, freshness threshold, and recent window count must be positive")
     if config["crypto_producer"]["duration_seconds"] < 0 or config["crypto_producer"]["max_messages"] < 0:
         raise ConfigError("crypto producer duration and max_messages cannot be negative")
     if config["crypto_producer"]["reconnect_initial_seconds"] < 1 or config["crypto_producer"]["reconnect_max_seconds"] < config["crypto_producer"]["reconnect_initial_seconds"]:

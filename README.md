@@ -54,6 +54,23 @@ spark.sql("""
 """).show(truncate=False)
 ```
 
+## Crypto Analytics dashboard
+
+Start the read-only dashboard with:
+
+```bash
+make dashboard
+```
+
+Open [http://localhost:8501](http://localhost:8501). It reads the existing
+hourly Delta snapshot and operational metrics; it does not trigger analytics
+or Silver processing. The page refreshes every 60 seconds by default and also
+has a manual refresh button. The latest recorded price is from the most recent
+hourly aggregate window, not a live quote. Exchange event freshness uses the
+Binance notification timestamp, with stale data called out after 15 minutes.
+Kafka and pipeline probes refresh every five minutes to avoid repeatedly
+scanning the full Bronze snapshot.
+
 Silver logs a run identifier, duration, counts, maximum Bronze Kafka offset,
 and quarantine counts by reason. The isolated recovery harness can be run from
 the Spark container after copying `tests/bronze_recovery_harness.py`; it creates
