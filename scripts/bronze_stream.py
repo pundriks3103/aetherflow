@@ -64,6 +64,7 @@ def main():
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"))
     spark = configure_s3a(builder, config).getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
+    
     try:
         kafka_records = (spark.readStream.format("kafka")
             .option("kafka.bootstrap.servers", args.bootstrap_servers)
@@ -74,9 +75,11 @@ def main():
         query = (bronze.writeStream.format("delta").outputMode("append")
             .option("checkpointLocation", args.checkpoint)
             .trigger(processingTime=f"{args.trigger_seconds} seconds").start(args.output))
+        
         LOG.info("Streaming topic=%s output=%s checkpoint=%s trigger_seconds=%s", args.topic, args.output, args.checkpoint, args.trigger_seconds)
         deadline = time.monotonic() + args.run_seconds if args.run_seconds else None
         last_batch_id = None
+        
         while query.isActive:
             wait_seconds = min(1, args.trigger_seconds)
             if deadline is not None:
